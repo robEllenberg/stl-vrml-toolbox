@@ -74,7 +74,7 @@ end
 
 function [P1,K1,P2,K2]=divideSolid(p0,p1,P,K,check)
 
-[p_slice,~]=slicemesh(p0,p1,P,K,check);
+p_slice=slicemesh(p0,p1,P,K,check);
 if check
     drawnow
     pause(.01)

@@ -1,4 +1,4 @@
-function [xyzp,edgelist]=slicemesh(p0,p1,XYZ,tri,check)
+function [xyzp]=slicemesh(p0,p1,XYZ,tri,check)
 % Algorithm by: John D'Errico
 % http://www.mathworks.cn/matlabcentral/newsreader/view_thread/29075
 
@@ -18,7 +18,7 @@ function [xyzp,edgelist]=slicemesh(p0,p1,XYZ,tri,check)
 % -------------------------------------------------------------------------
 
 if ~exist('check','var')
-    check=1
+    check=1;
 end
 
 % first, determine which triangles cross the plane.
@@ -41,49 +41,69 @@ dc=c*p1';
 % then this face crosses the plane. k will be a list of the triangles the plane
 % crosses.
 
-k=(da>0)+(db>0)+(dc>0);
-k=find((k==1)|(k==2));
+test=(da>0)+(db>0)+(dc>0);
 
 % if k is not empty, then the plane had some intersection with the object.
 % I'll be lazy here and loop over the faces crossed, although the loop is
 % easily vectorized.
 
-edgelist=[];
-xyzp=[];
-j=0;
-
-for i=k(1):k(end)
-    edgei=[];
-
-    % did we cross edge ab?
-    if (da(i)*db(i))<=0
-        j=j+1;
-        edgei=j; 
-        t=abs(da(i))/(abs(da(i))+abs(db(i)));
-        xyz0=[XYZ(tri(i,1),:).*(1-t)+XYZ(tri(i,2),:).*t];
-        xyzp=[xyzp;xyz0];
-    end
-
-    % did we cross edge ac?
-    if (da(i)*dc(i))<=0
-        j=j+1;
-        edgei=[edgei,j];
-        t=abs(da(i))/(abs(da(i))+abs(dc(i)));
-        xyz0=[XYZ(tri(i,1),:).*(1-t)+XYZ(tri(i,3),:)*t];
-        xyzp=[xyzp;xyz0];
-    end
-
-    % did we cross edge bc?
-    if (db(i)*dc(i))<=0
-        j=j+1;
-        edgei=[edgei,j];
-        t=abs(db(i))/(abs(db(i))+abs(dc(i)));
-        xyz0=[XYZ(tri(i,2),:)*(1-t)+XYZ(tri(i,3),:)*t];
-        xyzp=[xyzp;xyz0];
-    end
-%     edgei
-%     edgelist
-    edgelist=[edgelist;edgei];
+%edgelist=[];
+%xyzp=[];
+% j=0;
+% count=1;
+% for i=k(1):k(end)
+%     %edgei=[];
+% 
+%     % did we cross edge ab?
+%     if (da(i)*db(i))<=0
+%         j=j+1;
+%         %edgei=j; 
+%         t=abs(da(i))/(abs(da(i))+abs(db(i)));
+%         xyz0=[XYZ(tri(i,1),:).*(1-t)+XYZ(tri(i,2),:).*t];
+%         xyzp=[xyzp;xyz0];
+%     end
+% 
+%     % did we cross edge ac?
+%     if (da(i)*dc(i))<=0
+%         j=j+1;
+%         %edgei=[edgei,j];
+%         t=abs(da(i))/(abs(da(i))+abs(dc(i)));
+%         xyz0=[XYZ(tri(i,1),:).*(1-t)+XYZ(tri(i,3),:)*t];
+%         xyzp=[xyzp;xyz0];
+%     end
+% 
+%     % did we cross edge bc?
+%     if (db(i)*dc(i))<=0
+%         t=abs(db(i))/(abs(db(i))+abs(dc(i)));
+%         xyz0=[XYZ(tri(i,2),:)*(1-t)+XYZ(tri(i,3),:)*t];
+%         xyzp=[xyzp;xyz0];
+%     end
+% %     edgei
+% %     edgelist
+%     %edgelist=[edgelist;edgei];
+% end
+K=find(test==1|test==2);
+if ~isempty(K)
+    C=da(K).*db(K)<=0;
+    ind=K(C);
+    
+    t_ab=repmat(abs(da(ind))./(abs(da(ind))+abs(db(ind))),1,3);
+    xyz_ab=XYZ(tri(ind,1),:).*(1-t_ab)+XYZ(tri(ind,2),:).*t_ab;
+    
+    C=da(K).*dc(K)<=0;
+    ind=K(C);
+    
+    t_ac=repmat(abs(da(ind))./(abs(da(ind))+abs(dc(ind))),1,3);
+    xyz_ac=XYZ(tri(ind,1),:).*(1-t_ac)+XYZ(tri(ind,3),:).*t_ac;
+    
+    C=db(K).*dc(K)<=0;
+    ind=K(C);
+    
+    t_bc=repmat(abs(db(ind))./(abs(db(ind))+abs(dc(ind))),1,3);
+    xyz_bc=XYZ(tri(ind,2),:).*(1-t_bc)+XYZ(tri(ind,3),:).*t_bc;
+    xyzp=[xyz_ab;xyz_ac;xyz_bc];
+else
+    xyzp=[];
 end
 
 if check>=1
