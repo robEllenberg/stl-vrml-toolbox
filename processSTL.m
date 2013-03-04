@@ -1,5 +1,5 @@
 function processSTL(filelist,mir,hull,check,stlout,reduce)
-%% Process VMRL97 files exported from Inventor 20XX by CADStudio's VRML exporter
+%% Process STL files exported from SolidWorks URDF Exporter
 % Read in a listing of files and process them for OpenRAVE by adding color
 % data, and optionally mirroring and finding the convex hulls of each.
 % Usage:
@@ -57,7 +57,7 @@ for k=1:length(listing)
     [K,pointCloud]=stlread(fname);
     if check>=1
         eztrisurf(K,pointCloud);
-        drawnowvim 
+        drawnow; 
         if check>=2
             pause()
         else
