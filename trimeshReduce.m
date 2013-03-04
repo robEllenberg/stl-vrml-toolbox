@@ -74,8 +74,8 @@ catch err
         V=0;
         SA=0;
     elseif strcmp(err.identifier,'MATLAB:convhull:NotEnoughPtsConvhullErrId')
-        V=0;
-        SA=0;
+        V=1000;
+        SA=1;
     else
         disp(err)
     end
