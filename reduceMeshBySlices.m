@@ -116,7 +116,7 @@ for p=1:length(peaks)-1
 %             ind(k)=0;
 %         end
 %     end
-    [Ps,Ks]=trimeshReduce(Ps,Ks,.999,1);
+    [Ps,Ks]=trimeshReduce(Ps,Ks,.999,0);
     
     %eztrisurf(Ks,Ps)
     %pause()

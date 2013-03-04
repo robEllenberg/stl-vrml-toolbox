@@ -37,8 +37,15 @@ while (upper-lower)>2
     numremove=floor((lower+upper)/2);
     
     P2=P(ix(numremove:end),:);
-    K2=convhull(P2(:,1),P2(:,2),P2(:,3));
-    V2=meshVolume(P2,K2);
+    
+    try
+        K2=convhull(P2(:,1),P2(:,2),P2(:,3));
+         V2=meshVolume(P2,K2);
+    catch err
+        V2=0;
+    end
+    
+   
     rp=V2/V1;
     
 end
