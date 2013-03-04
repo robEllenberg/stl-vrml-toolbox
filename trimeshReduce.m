@@ -73,8 +73,11 @@ catch err
         fprintf('Found %d co-planar faces at point %d\n',length(r),ind)
         V=0;
         SA=0;
+    elseif strcmp(err.identifier,'MATLAB:convhull:NotEnoughPtsConvhullErrId')
+        V=0;
+        SA=0;
     else
-        error(err)
+        disp(err)
     end
 end
 

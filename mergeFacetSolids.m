@@ -10,4 +10,5 @@ P=[P1;P2];
 
 startInd=size(P1,1);
 K=[K1;K2+startInd];
+
 end

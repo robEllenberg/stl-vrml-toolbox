@@ -1,7 +1,7 @@
-function [P_merged,K_merged] = reduceMeshBySlices(file,ax,slices,iters,check)
+function [P_merged,K_merged] = reduceMeshBySlices(file,ax,slices,chooseslices,check)
 %reduceMeshBySlices Reduces mesh density by iterative slicing
 %   Reduce mesh density and redundancy by repeatedly slicing along an axis
-%   and checking for volume reduction in the convex hull. 
+%   and checking for volume reduction in the convex hull.
 %   1) Take a convex hull of the whole mesh and record the volume.
 %   2) repeatedly slice along the specified axis, creating 2 convex solids
 %       from the partitioned points. Sum their volume and record the difference
@@ -41,6 +41,7 @@ else
     j=3;
     p1=[0,0,1]
 end
+
 
 %Start of iter loop?
 heights=linspace(bounds(j),bounds(j+3),slices+2)
@@ -88,35 +89,50 @@ end
 heights=[heights,newheights];
 [heights,ind]=sort(heights);
 [~,loc]=findpeaks(reduction(ind));
-
+if check
+    figure(1)
+    plot(reduction(ind))
+end
 Ptemp=P;
 Ktemp=K;
 P_merged=[];
 K_merged=[];
 hvec=[bounds(j)-.001,heights,bounds(j+3)+.001];
 peaks=[1,loc+1,length(hvec)]
+t0=[]
 for p=1:length(peaks)-1
     p0=p1*hvec(peaks(p))
     p2=p1*hvec(peaks(p+1))
     %TODO: function
-    
     %Calculate slice points
-    [Ps,Ks]=sliceSolid(p0,p2,p1,P,K,check);
-    [P_merged,K_merged]=mergeFacetSolids(P_merged,K_merged,Ps,Ks);
+    [Ps,Ks,b,t]=sliceSolid(p0,p2,p1,P,K,check);
+    ind=1:size(Ks,1);
+
+        
+    for k=ind       
+       if sum(Ks(k,1)==[t,b]) && sum(Ks(k,2)==[t,b]) && sum(Ks(k,3)==[t,b])
+           ind(k)=0;
+       end
+    end
+    
+    eztrisurf(Ks(ind>0,:),Ps)
+    %pause()
+    [P_merged,K_merged]=mergeFacetSolids(P_merged,K_merged,Ps,Ks(ind>0,:));
     
 end
 [P_merged,K_merged]=mergeFacetSolids(P_merged,K_merged,Ptemp,Ktemp);
+[P_shrunk,K_shrunk]=shrinkPointCloud(P_merged,K_merged);
 if check
-    figure(1)
-    plot(reduction(ind))
     figure(2)
     eztrisurf(K_merged,P_merged)
 end
-cloud2stl(['output/',file],P_merged,K_merged,'b')
+
+[P_out,K_out]=trimeshReduce(P_shrunk,K_shrunk,.999,check);
+cloud2stl(['output/',file],P_out,K_out,'b')
 
 end
 
-function [Pout,Kout]=sliceSolid(p0,p1,n,P,K,check)
+function [P_stack,Kout,bottom,top]=sliceSolid(p0,p1,n,P,K,check)
 
 p_slice1=slicemesh(p0,n,P,K,check);
 p_slice2=slicemesh(p1,n,P,K,check);
@@ -124,9 +140,13 @@ p_slice2=slicemesh(p1,n,P,K,check);
 [~,j]=max(n);
 between_ind=P(:,j)>=p0*n' & P(:,j)<=p1*n';
 P_stack=[P(between_ind,:);p_slice1;p_slice2];
+start=size(P(between_ind,:),1)+1;
+bottom=start:start+size(p_slice1,1);
+top=bottom(end)+1:bottom(end)+1+size(p_slice2,1);
+
 if ~isempty(P_stack)
-    K_lower=convhull(P_stack);
-    [Pout,Kout]=shrinkPointCloud(P_stack,K_lower);
+    Kout=convhull(P_stack);
+    %[Pout,Kout]=shrinkPointCloud(P_stack,K_lower);
 else
     disp('empty')
     p0
@@ -154,13 +174,14 @@ above_ind=P(:,j)>p0*p1';
 P_above=P(above_ind,:);
 P_below=P(~above_ind,:);
 
-P_upper=[P_above;p_slice];
-P_lower=[P_below;p_slice];
+P2=[P_above;p_slice];
+P1=[P_below;p_slice];
 
-K_upper=convhull(P_upper);
-K_lower=convhull(P_lower);
+K2=convhull(P2);
+K1=convhull(P1);
 
-[P1,K1]=shrinkPointCloud(P_lower,K_lower);
-[P2,K2]=shrinkPointCloud(P_upper,K_upper);
+%[P1,K1]=shrinkPointCloud(P_lower,K_lower);
+%[P2,K2]=shrinkPointCloud(P_upper,K_upper);
 
 end
+
