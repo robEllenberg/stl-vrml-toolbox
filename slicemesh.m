@@ -103,7 +103,6 @@ if ~isempty(K)
     xyz_bc=XYZ(tri(ind,2),:).*(1-t_bc)+XYZ(tri(ind,3),:).*t_bc;
     xyzp=[xyz_ab;xyz_ac;xyz_bc];
 else
-    keyboard
     xyzp=[];
 end
 

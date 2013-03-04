@@ -43,7 +43,7 @@ else
 end
 
 %Start of iter loop?
-heights=linspace(bounds(j),bounds(j+3),slices+2);
+heights=linspace(bounds(j),bounds(j+3),slices+2)
 heights=heights(2:end-1); %throw out end slices since they do nothing
 
 for k=1:slices
@@ -63,24 +63,80 @@ for k=1:slices
     reduction(k)=V_init-V_lower-V_upper;
 end
 
+[~,loc]=findpeaks(reduction);
+
+%single refinement step
+newheights=[heights(loc)+max(diff(heights))/3,heights(loc)-max(diff(heights))/3]
+for k=1:length(newheights)
+    %TODO: bisection algorithm?
+    
+    %TODO: keep track of source points so that we can map back to original
+    %P and remove duplicate points at the slice plane?
+    %Define simple slice plane
+    h=newheights(k);
+    p0=p1*h;
+    
+    [P_lower,K_lower,P_upper,K_upper]=divideSolid(p0,p1,P,K,check);
+    
+    V_lower=meshVolume(P_lower,K_lower);
+    V_upper=meshVolume(P_upper,K_upper);
+    
+    reduction=[reduction,V_init-V_lower-V_upper];
+end
 
 %TODO: recursive divide
+heights=[heights,newheights];
+[heights,ind]=sort(heights);
+[~,loc]=findpeaks(reduction(ind));
 
-[~,ind]=max(reduction);
-h_max=heights(ind);
-p0=p1*h_max;
-%TODO: function
-
-%Calculate slice points
-[P1,K1,P2,K2]=divideSolid(p0,p1,P,K,check);
-[P_merged,K_merged]=mergeFacetSolids(P1,K1,P2,K2);
+Ptemp=P;
+Ktemp=K;
+P_merged=[];
+K_merged=[];
+hvec=[bounds(j)-.001,heights,bounds(j+3)+.001];
+peaks=[1,loc+1,length(hvec)]
+for p=1:length(peaks)-1
+    p0=p1*hvec(peaks(p))
+    p2=p1*hvec(peaks(p+1))
+    %TODO: function
+    
+    %Calculate slice points
+    [Ps,Ks]=sliceSolid(p0,p2,p1,P,K,check);
+    [P_merged,K_merged]=mergeFacetSolids(P_merged,K_merged,Ps,Ks);
+    
+end
+[P_merged,K_merged]=mergeFacetSolids(P_merged,K_merged,Ptemp,Ktemp);
 if check
     figure(1)
-    plot(reduction)
+    plot(reduction(ind))
     figure(2)
     eztrisurf(K_merged,P_merged)
 end
 cloud2stl(['output/',file],P_merged,K_merged,'b')
+
+end
+
+function [Pout,Kout]=sliceSolid(p0,p1,n,P,K,check)
+
+p_slice1=slicemesh(p0,n,P,K,check);
+p_slice2=slicemesh(p1,n,P,K,check);
+
+[~,j]=max(n);
+between_ind=P(:,j)>=p0*n' & P(:,j)<=p1*n';
+P_stack=[P(between_ind,:);p_slice1;p_slice2];
+if ~isempty(P_stack)
+    K_lower=convhull(P_stack);
+    [Pout,Kout]=shrinkPointCloud(P_stack,K_lower);
+else
+    disp('empty')
+    p0
+    p1
+    n
+    Pout=[];
+    Kout=[];
+end
+
+
 
 end
 
