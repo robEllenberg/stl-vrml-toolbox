@@ -103,10 +103,11 @@ if ~isempty(K)
     xyz_bc=XYZ(tri(ind,2),:).*(1-t_bc)+XYZ(tri(ind,3),:).*t_bc;
     xyzp=[xyz_ab;xyz_ac;xyz_bc];
 else
+    keyboard
     xyzp=[];
 end
 
-if check>=1
+if check>=1 && ~isempty(xyzp)
     if check>=2
         eztrisurf(tri,XYZ);
     end
@@ -117,15 +118,5 @@ if check>=1
     plot3(xyzp(:,1),xyzp(:,2),xyzp(:,3),'r.')
     
     hold off
-end
-return
-
-
-function c=array_subs(a,b)
-
-size(a)
-size(b)
-for i=1:length(a)
-    c(i,:)=a(i,:)-b;
 end
 return
