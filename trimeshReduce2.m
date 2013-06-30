@@ -1,4 +1,4 @@
-function [P4,K3]=trimeshReduce2(P,K,check)
+function [Pout,Kout]=trimeshReduce2(P,K,check)
 
 if ~exist('check','var')
     check=false;
@@ -28,16 +28,16 @@ end
 
 [P3,K3]=refineTrimesh(P2,K2,size(K2,1)*2,ceil(size(K2,1)/10));
 %Find centroid of convex solid to estimate "normals" at points
-cent=polyhedronCentroid(P3,K3)
+cent=polyhedronCentroid(P3,K3);
 [M,N]=size(P3);
 for p=1:M
     delta=P3(p,:)-cent;
-    P3(p,:)=delta*1.5+cent;
+    P3(p,:)=delta*1.01+cent;
 end
 
 if check
     subplot(2,2,3)
-    eztrisurf(K3,P3,.4)
+    eztrisurf(Kout,P3,.4)
     hold on
     eztrisurf(K,P);
     hold off
@@ -45,21 +45,21 @@ if check
     axis equal
 end
 
-P4=P3;
+Pout=P3;
 for j=1:M
     pj=P3(j,:);
     h = pj-cent;
-    direc = h / norm(h)
+    direc = h / norm(h);
     int_line=[cent,direc];
     %Find intersections along line to conv-hull point from center
     inters=intersectLineMesh3d(int_line,P,K);
     %knowing that distance >= 0, find min distance and scale 
-    [d,ind]=minDistanceToBody(pj,inters);
+    d=minDistanceToBody(pj,inters);
     
     %should move point towards surface
     
     pnew=-direc*d+pj;
-    P4(j,:)=pnew;
+    Pout(j,:)=pnew;
     if check>1
         figure(2)
         ezscatter(inters)
@@ -73,7 +73,7 @@ end
 
 if check
     subplot(2,2,4)    
-    eztrisurf(K3,P4,.5)
+    eztrisurf(Kout,Pout,.5)
     hold on
     eztrisurf(K,P);
     hold off
@@ -82,11 +82,3 @@ if check
 end
 
 end
-
-function [d,ind] = minDistanceToBody(pj,inters)
-    PJ=repmat(pj,size(inters,1),1);
-    deltas=inters-PJ;
-    dists=sqrt(sum(deltas.^2,2));
-    [d,ind]=min(dists);
-end
-
