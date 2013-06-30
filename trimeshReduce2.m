@@ -25,12 +25,8 @@ if check
     title('Convex-hull overlay');
 end
 
-FV.vertices=P2;
-FV.faces=K2;
-FV2=refinepatch(FV);
 
-P3=FV2.vertices;
-K3=FV2.faces;
+[P3,K3]=refineTrimesh(P2,K2,size(K2,1)*2,ceil(size(K2,1)/10));
 %Find centroid of convex solid to estimate "normals" at points
 cent=polyhedronCentroid(P3,K3)
 [M,N]=size(P3);
