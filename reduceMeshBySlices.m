@@ -17,6 +17,7 @@ function [P_merged,K_merged] = reduceMeshBySlices(file,ax,slices,chooseslices,ch
 [K,P]=stlread(file);
 if check
     figure(3)
+    eztrisurf(K,P)
 end
 bounds=[min(P)';max(P)'];
 
@@ -46,7 +47,7 @@ end
 %Start of iter loop?
 heights=linspace(bounds(j),bounds(j+3),slices+2)
 heights=heights(2:end-1); %throw out end slices since they do nothing
-
+pause
 for k=1:slices
     %TODO: bisection algorithm?
     
@@ -107,15 +108,6 @@ for p=1:length(peaks)-1
     %Calculate slice points
     [Ps,Ks,b,t]=sliceSolid(p0,p2,p1,P,K,check);
     size(Ps)
-    %Remove faces?
-%     ind=1:size(Ks,1);
-%     
-%     
-%     for k=ind
-%         if sum(Ks(k,1)==[t,b]) && sum(Ks(k,2)==[t,b]) && sum(Ks(k,3)==[t,b])
-%             ind(k)=0;
-%         end
-%     end
     [Ps,Ks]=trimeshReduce(Ps,Ks,.999,0);
     
     %eztrisurf(Ks,Ps)
@@ -163,8 +155,6 @@ else
     Kout=[];
 end
 
-
-
 end
 
 function [P1,K1,P2,K2]=divideSolid(p0,p1,P,K,check)
@@ -186,9 +176,6 @@ P1=[P_below;p_slice];
 
 K2=convhull(P2);
 K1=convhull(P1);
-
-%[P1,K1]=shrinkPointCloud(P_lower,K_lower);
-%[P2,K2]=shrinkPointCloud(P_upper,K_upper);
 
 end
 
