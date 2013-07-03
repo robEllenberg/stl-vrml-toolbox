@@ -14,13 +14,11 @@ function [Vout,Fout]=shrinkModel(V,F)
 
     [V2,F2]=patchslim(V,F);
     pointsUsed=unique(F2);
-    Fout=zeros(size(F2));
+    newFaces=zeros(size(F2));
     
-    for k=1:length(pointsUsed)
-        %Remap old faces onto new point cloud
-        ind= F2==pointsUsed(k);
-        Fout(ind)=k;
-    end
+    newind=zeros(size(V2,1),1);
+    newind(pointsUsed)=1:length(pointsUsed);
     
+    Fout=newind(F);
     Vout=V2(pointsUsed,:);
 end

@@ -22,7 +22,7 @@ function varargout = pickplanes(varargin)
 
 % Edit the above text to modify the response to help pickplanes
 
-% Last Modified by GUIDE v2.5 02-Jul-2013 20:40:25
+% Last Modified by GUIDE v2.5 03-Jul-2013 13:27:55
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -55,12 +55,15 @@ function pickplanes_OpeningFcn(hObject, eventdata, handles, varargin)
 handles.output = hObject;
 if length(varargin)>=1
     handles.FileName=varargin{1};
-    handles.VathName='';
+    handles.PathName='';
 else
-    [handles.FileName,handles.VathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
+    [handles.FileName,handles.PathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
 end
-[handles.V,handles.F]=stlread([handles.VathName,handles.FileName],true,true);
-handles.clicked=false;
+[handles.V,handles.F]=stlread([handles.PathName,handles.FileName],true,true);
+handles.V1=[];
+handles.V2=[];
+handles.F1=[];
+handles.F2=[];
 % Update handles structure
 % This sets up the initial plot - only do when we are invisible
 % so window can get raised using pickplanes.
@@ -165,13 +168,17 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in pushbutton6.
-function pushbutton6_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton6 (see GCBO)
+% --- Executes on button press in RotateModeButton.
+function RotateModeButton_Callback(hObject, eventdata, handles)
+% hObject    handle to RotateModeButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-rotate3d
-
+get(hObject,'Value')
+if get(hObject,'Value')==0
+    rotate3d off
+else
+    rotate3d on
+end
 
 % --- Executes on mouse press over axes background.
 function axes1_ButtonDownFcn(hObject, eventdata, handles)
@@ -200,40 +207,27 @@ function figure1_WindowButtonDownFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 pt=select3d(handles.axes1);
 ax_range=axis();
-if ~isempty(pt) && ~handles.clicked
-    ind=4-get(handles.plane,'Value');
-    
-    tol=str2double(get(handles.edit1,'String'));
-    [Pl,Kl,Pr,Kr]=splitCloud(handles.V,handles.F,pt,ind,tol);
-    
+
+if ~isempty(pt)
     handles.pt=pt;
-    handles.F1=Kl;
-    handles.F2=Kr;
-    handles.V1=Pl;
-    handles.V2=Pr;
-    
-    update_plot(handles)
-    
-    handles.clicked=~handles.clicked;
-    
-elseif handles.clicked && ~isempty(pt)
-    handles.clicked=~handles.clicked;
-    [az,el]=view;
-    eztrisurf(handles.axes1,handles.F,handles.V);
-    view(az,el)
-    axis(ax_range)
-    xlabel('X')
-    ylabel('Y')
-    view(az,el)
-    axis(ax_range)
-    xlabel('X')
-    ylabel('Y')
-    zlabel('Z')
-    title(handles.FileName)
+    newSplitPoint(hObject,handles);
 end
 
-guidata(hObject,handles)
+function newSplitPoint(hObject,handles)
+%%Based on the latest selection point, re-slice the model
+ind=4-get(handles.plane,'Value');
+side=get(handles.SideButton,'Value');
+tol=str2double(get(handles.edit1,'String'));
+[V1,F1,V2,F2]=splitModel(handles.V,handles.F,handles.pt,ind,tol,side);
 
+handles.F1=F1;
+handles.F2=F2;
+handles.V1=V1;
+handles.V2=V2;
+
+update_plot(handles)
+guidata(hObject,handles)
+    
 function update_plot(handles)
 ax_range=axis();
 [az,el]=view;
@@ -244,13 +238,13 @@ F_conv1=convhull(handles.V1);
 F_conv2=convhull(handles.V2);
 showright=get(handles.ShowRightButton,'Value');
 if showleft
-    eztrisurf(handles.axes1,handles.F1,handles.V1,1,[.8,.2,.2]);
-    eztrisurf(handles.axes1,F_conv1,handles.V1,.5,[.8,.2,.2]);
+    eztrisurf(handles.axes1,handles.F1,handles.V1,1,[.7,.2,.2]);
+    eztrisurf(handles.axes1,F_conv1,handles.V1,.5,[.9,.2,.2]);
 end
 
 if showright
-    eztrisurf(handles.axes1,handles.F2,handles.V2,1,[.2,.2,.8]);
-    eztrisurf(handles.axes1,F_conv2,handles.V2,.5,[.2,.2,.8]);
+    eztrisurf(handles.axes1,handles.F2,handles.V2,1,[.2,.2,.7]);
+    eztrisurf(handles.axes1,F_conv2,handles.V2,.5,[.2,.2,.9]);
 end
 
 hold off
@@ -261,14 +255,21 @@ ylabel('Y')
 zlabel('Z')
 title(handles.FileName)
 
-function [V1,F1,V2,F2]=splitCloud(V,F,point,ind,tol)
+function [V1,F1,V2,F2]=splitModel(V,F,point,ind,tol,side)
 %Split vertices and faces at the cut plane, fuzzifying by a tolerance
 %to include points just above / just below the plane
 % V = vertices
 % F = faces
 
 %Vcut1=V(V(:,ind)>=point(ind),:);
-slice1=sum(reshape(V(F,ind)>=point(ind)-tol,[],3),2)==3;
+if ~exist('side','var')
+    side=1;
+end
+if side
+    slice1=sum(reshape(V(F,ind)>=point(ind)-tol,[],3),2)==3;
+else
+    slice1=sum(reshape(V(F,ind)<=point(ind)-tol,[],3),2)==3;
+end
 slice2=~slice1;
 
 Fcut1=F(slice1,:);
@@ -288,14 +289,14 @@ files=dir([handles.FileName(1:8),'*']);
 ind=length(files);
 if get(handles.ShowLeftButton,'Value')
     newName=regexprep(handles.FileName,'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
-    writeModel(handles.V,handles.F1,newName);
-    writeConvexHull(handles.V,newName)
+    writeModel(handles.V1,handles.F1,newName);
+    writeConvexHull(handles.V1,newName)
     ind=ind+1;
 end
-if get(handles.ShowLeftButton,'Value')
+if get(handles.ShowRightButton,'Value')
     newName=regexprep(handles.FileName,'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
-    writeModel(handles.V,handles.F1,newName);
-    writeConvexHull(handles.V,newName)
+    writeModel(handles.V2,handles.F2,newName);
+    writeConvexHull(handles.V2,newName)
 end
 
 
@@ -304,9 +305,9 @@ function LoadButton_Callback(hObject, eventdata, handles)
 % hObject    handle to LoadButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-[handles.FileName,handles.VathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
+[handles.FileName,handles.PathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
 if handles.FileName
-    [handles.V,handles.F]=stlread([handles.VathName,handles.FileName],true,true);
+    [handles.V,handles.F]=stlread([handles.PathName,handles.FileName],true,true);
     
     eztrisurf(handles.axes1,handles.F,handles.V);
 end
@@ -319,8 +320,8 @@ function AddModelButton_Callback(hObject, eventdata, handles)
 % hObject    handle to AddModelButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-[handles.FileName,handles.VathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
-[handles.V,handles.F]=stlread([handles.VathName,handles.FileName],true,true);
+[handles.FileName,handles.PathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
+[handles.V,handles.F]=stlread([handles.PathName,handles.FileName],true,true);
 hold on
 eztrisurf(handles.axes1,handles.F,handles.V);
 hold off
@@ -353,3 +354,109 @@ cloud2stl(outname,Vc,Fc,'binary');
 function writeModel(V,F,modelname)
 [Vc,Fc]=shrinkModel(V,F);
 cloud2stl(modelname,Vc,Fc,'binary');
+
+
+% --- Executes on button press in SliceXYCheck.
+function SliceXYCheck_Callback(hObject, eventdata, handles)
+% hObject    handle to SliceXYCheck (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of SliceXYCheck
+
+
+% --- Executes on button press in SliceXZCheck.
+function SliceXZCheck_Callback(hObject, eventdata, handles)
+% hObject    handle to SliceXZCheck (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of SliceXZCheck
+
+
+% --- Executes on button press in SliceYZCheck.
+function SliceYZCheck_Callback(hObject, eventdata, handles)
+% hObject    handle to SliceYZCheck (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of SliceYZCheck
+
+
+% --- Executes on button press in RefineRedButton.
+function RefineRedButton_Callback(hObject, eventdata, handles)
+% hObject    handle to RefineRedButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+handles.V=handles.V1;
+handles.F=handles.F1;
+    
+eztrisurf(handles.axes1,handles.F,handles.V);
+
+guidata(hObject,handles);
+
+
+% --- Executes on button press in RefineBlueButton.
+function RefineBlueButton_Callback(hObject, eventdata, handles)
+% hObject    handle to RefineBlueButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+handles.V=handles.V2;
+handles.F=handles.F2;
+    
+eztrisurf(handles.axes1,handles.F,handles.V);
+
+guidata(hObject,handles);
+
+
+% --- Executes on button press in ExportRedButton.
+function ExportRedButton_Callback(hObject, eventdata, handles)
+% hObject    handle to ExportRedButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+%KLUDGE: assume Body_XXX name
+files=dir([handles.FileName(1:8),'*']);
+ind=length(files);
+
+newName=regexprep(handles.FileName,'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
+writeModel(handles.V1,handles.F1,newName);
+writeConvexHull(handles.V1,newName)
+
+% --- Executes on button press in ExportBlueButton.
+function ExportBlueButton_Callback(hObject, eventdata, handles)
+% hObject    handle to ExportBlueButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+files=dir([handles.FileName(1:8),'*']);
+ind=length(files);
+newName=regexprep(handles.FileName,'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
+writeModel(handles.V2,handles.F2,newName);
+writeConvexHull(handles.V2,newName)
+
+
+% --- Executes on button press in SideButton.
+function SideButton_Callback(hObject, eventdata, handles)
+% hObject    handle to SideButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of SideButton
+newSplitPoint(hObject,handles);
+
+
+% --- Executes on button press in ShowExportedPartsButton.
+function ShowExportedPartsButton_Callback(hObject, eventdata, handles)
+% hObject    handle to ShowExportedPartsButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+files=dir([handles.FileName(1:8),'*']);
+
+for f=files
+    
+    [handles.V,handles.F]=stlread(f,true,true);
+    hold on
+    eztrisurf(handles.axes1,handles.F,handles.V);
+    hold off
+end
