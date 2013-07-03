@@ -1,12 +1,10 @@
-function [Pout,Kout]=trimeshReduce2(P,K,check)
+function [Pout,Ks]=trimeshReduce2(P,K,check,ax)
 
 if ~exist('check','var')
     check=false;
 end
 
 if check
-    subplot(2,2,1)
-
     eztrisurf(K,P);
     title('Original model');
 end
@@ -14,71 +12,61 @@ end
 %First, find the convex hull of all the points
 
 K_conv=convhull(P(:,1),P(:,2),P(:,3));
-[P2,K2]=shrinkPointCloud(P,K_conv);
+cent=polyhedronCentroid(P,K_conv);
+bb=boundingBox3d(P);
+bmin=bb([1:2:5])+cent;
+bmax=bb([2:2:6])+cent;
+radius=1.2*max(abs([bmin,bmax]));
+
+[Ps,Ks]=makeSphereWrapper(cent,radius,30,ax);
 
 if check
-    subplot(2,2,2)
-    eztrisurf(K2,P2,.5)
     hold on
-    eztrisurf(K,P);
+    eztrisurf(Ks,Ps,.5);
+    ezscatter(cent)
     hold off
-    title('Convex-hull overlay');
+    title('Sphere wrapper');
 end
 
-
-[P3,K3]=refineTrimesh(P2,K2,size(K2,1)*2,ceil(size(K2,1)/10));
-%Find centroid of convex solid to estimate "normals" at points
-cent=polyhedronCentroid(P3,K3);
-[M,N]=size(P3);
-for p=1:M
-    delta=P3(p,:)-cent;
-    P3(p,:)=delta*1.01+cent;
-end
-
-if check
-    subplot(2,2,3)
-    eztrisurf(Kout,P3,.4)
-    hold on
-    eztrisurf(K,P);
-    hold off
-    title('Refined convex hull');
-    axis equal
-end
-
-Pout=P3;
-for j=1:M
-    pj=P3(j,:);
+Pout=Ps;
+ball_radius=0;
+min_rad=radius/20;
+for j=1:size(Ps,1)
+    pj=Ps(j,:);
     h = pj-cent;
     direc = h / norm(h);
     int_line=[cent,direc];
     %Find intersections along line to conv-hull point from center
     inters=intersectLineMesh3d(int_line,P,K);
     %knowing that distance >= 0, find min distance and scale 
-    d=minDistanceToBody(pj,inters);
-    
+    [d,ind]=minDistanceToBody(pj,inters);
+    %minimum distance prevents degenerate geometry
+    if isempty(d) || isempty(inters)
+        d=min_rad;
+    else
+        d=min(d,radius-min_rad);
+    end
     %should move point towards surface
     
-    pnew=-direc*d+pj;
+    pnew=-direc*(d-ball_radius)+pj;
     Pout(j,:)=pnew;
-    if check>1
-        figure(2)
-        ezscatter(inters)
-        hold on
-    eztrisurf(K,P)
-    eztrisurf(K3,P3,.4)
-    hold off
-        pause
-    end
 end
 
 if check
-    subplot(2,2,4)    
-    eztrisurf(Kout,Pout,.5)
-    hold on
     eztrisurf(K,P);
+    hold on
+    eztrisurf(Ks,Pout,.5);
     hold off
     title('Shrunk convex hull towards body');
-    axis equal
+    xlabel('X')
+    ylabel('Y')
 end
 
+end
+
+function [d,ind] = minDistanceToBody(pj,inters)
+    PJ=repmat(pj,size(inters,1),1);
+    deltas=inters-PJ;
+    dists=sqrt(sum(deltas.^2,2));
+    [d,ind]=min(dists);
 end

@@ -1,4 +1,4 @@
-function processSTL(filelist,mir,hull,check,stlout,reduce)
+function processSTL(filelist,mir,geomtype,check,stlout)
 %% Process STL files exported from SolidWorks URDF Exporter
 % Read in a listing of files and process them for OpenRAVE by adding color
 % data, and optionally mirroring and finding the convex hulls of each.
@@ -31,12 +31,8 @@ if ~exist('mir')
     mir='';
 end
 
-if ~exist('hull')
-    hull=0;
-end
-
-if ~exist('reduce')
-    reduce=0;
+if ~exist('geomtype')
+    geomtype=0;
 end
 
 listing = dir(filelist);
@@ -85,15 +81,24 @@ for k=1:length(listing)
         newMesh=K(:,[1,3,2]);
     end
     
-    if hull
-        newMesh=convhull(newCloud);
-        [newCloud,newMesh]=shrinkPointCloud(newCloud,newMesh);
+    if strcmp(geomtype,'hull')
+         newMesh=convhull(newCloud);
+         [newCloud,newMesh]=shrinkPointCloud(newCloud,newMesh);
         suffixstart=strfind(newName,'_');
         newName=['convhull' newName(suffixstart:end)];
-    end
-    %Reduce geometry by volume percentage (only if using convex hull!)
-    if reduce && hull
-        [newCloud, newMesh]=trimeshReduce(newCloud,newMesh,reduce,check);
+    elseif strcmp(geomtype,'shrink')
+        newName=['shrink_' newName];
+        switch newName(end)
+            case 'R'
+                ax=1;
+            case 'P'
+                ax=2;
+            case 'Y'
+                ax=3;
+            otherwise
+                ax=3
+        end
+        [newCloud, newMesh]=trimeshReduce2(newCloud,newMesh,check,ax);
     end
     
     if ~isempty(stlout) && stlout
