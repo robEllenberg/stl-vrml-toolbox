@@ -22,7 +22,7 @@ function varargout = pickplanes(varargin)
 
 % Edit the above text to modify the response to help pickplanes
 
-% Last Modified by GUIDE v2.5 03-Jul-2013 13:39:51
+% Last Modified by GUIDE v2.5 03-Jul-2013 16:04:23
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -64,13 +64,14 @@ handles.V1=[];
 handles.V2=[];
 handles.F1=[];
 handles.F2=[];
+mkdir export
 % Update handles structure
 % This sets up the initial plot - only do when we are invisible
 % so window can get raised using pickplanes.
 if strcmp(get(hObject,'Visible'),'off')
     eztrisurf(handles.axes1,handles.F,handles.V);
 end
-
+handles.axis_range=axis();
 
 guidata(hObject, handles);
 
@@ -196,7 +197,10 @@ if ~exist('col','var')
 end
 trisurf(faces,vertices(:,1),vertices(:,2),vertices(:,3),...
     'FaceAlpha',alpha,'Parent',ax,'FaceColor',col);
+
 axis equal
+
+
 
 
 % --- Executes on mouse press over figure background, over a disabled or
@@ -206,7 +210,6 @@ function figure1_WindowButtonDownFcn(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 pt=select3d(handles.axes1);
-ax_range=axis();
 
 if ~isempty(pt)
     handles.pt=pt;
@@ -229,11 +232,12 @@ update_plot(handles)
 guidata(hObject,handles)
     
 function update_plot(handles)
-ax_range=axis();
+
 [az,el]=view;
 cla;
 hold on
 showleft=get(handles.ShowLeftButton,'Value');
+if handles.V1
 F_conv1=convhull(handles.V1);
 F_conv2=convhull(handles.V2);
 showright=get(handles.ShowRightButton,'Value');
@@ -248,8 +252,11 @@ if showright
 end
 
 hold off
+else
+   eztrisurf(handles.axes1,handles.F,handles.V,1,[.5,.5,.5]); 
+end
 view(az,el)
-axis(ax_range)
+axis(handles.axis_range)
 xlabel('X')
 ylabel('Y')
 zlabel('Z')
@@ -285,16 +292,16 @@ function SaveButton_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 %KLUDGE: assume Body_XXX name
-files=dir([handles.FileName(1:8),'*']);
-ind=length(files);
+files=dir(['export/',handles.FileName(1:8),'*']);
+ind=length(files)+1;
 if get(handles.ShowLeftButton,'Value')
-    newName=regexprep(handles.FileName,'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
+    newName=regexprep(['export/',handles.FileName,],'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
     writeModel(handles.V1,handles.F1,newName);
     writeConvexHull(handles.V1,newName)
     ind=ind+1;
 end
 if get(handles.ShowRightButton,'Value')
-    newName=regexprep(handles.FileName,'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
+    newName=regexprep(['export/',handles.FileName],'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
     writeModel(handles.V2,handles.F2,newName);
     writeConvexHull(handles.V2,newName)
 end
@@ -311,7 +318,7 @@ if handles.FileName
     
     eztrisurf(handles.axes1,handles.F,handles.V);
 end
-
+handles.axis_range=axis();
 guidata(hObject,handles);
 
 
@@ -333,8 +340,13 @@ function ResetViewButton_Callback(hObject, eventdata, handles)
 % hObject    handle to ResetViewButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+cla
+handles.V1=[];
+handles.V2=[];
+handles.F1=[];
+handles.F2=[];
 update_plot(handles);
-
+guidata(hObject,handles);
 
 % --- Executes on button press in ShowRightButton.
 function ShowRightButton_Callback(hObject, eventdata, handles)
@@ -390,10 +402,9 @@ function RefineRedButton_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 handles.V=handles.V1;
-handles.F=handles.F1;
-    
+handles.F=handles.F1;  
 eztrisurf(handles.axes1,handles.F,handles.V);
-
+axis(handles.axis_range);
 guidata(hObject,handles);
 
 
@@ -407,7 +418,7 @@ handles.V=handles.V2;
 handles.F=handles.F2;
     
 eztrisurf(handles.axes1,handles.F,handles.V);
-
+axis(handles.axis_range);
 guidata(hObject,handles);
 
 
@@ -417,10 +428,10 @@ function ExportRedButton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 %KLUDGE: assume Body_XXX name
-files=dir([handles.FileName(1:8),'*']);
-ind=length(files);
+files=dir(['export/',handles.FileName(1:8),'*']);
+ind=length(files)+1;
 
-newName=regexprep(handles.FileName,'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
+newName=regexprep(['export/',handles.FileName],'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
 writeModel(handles.V1,handles.F1,newName);
 writeConvexHull(handles.V1,newName)
 
@@ -429,12 +440,12 @@ function ExportBlueButton_Callback(hObject, eventdata, handles)
 % hObject    handle to ExportBlueButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-files=dir([handles.FileName(1:8),'*']);
-ind=length(files);
-newName=regexprep(handles.FileName,'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
+files=dir(['export/',handles.FileName(1:8),'*']);
+ind=length(files)+1;
+
+newName=regexprep(['export/',handles.FileName],'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
 writeModel(handles.V2,handles.F2,newName);
 writeConvexHull(handles.V2,newName)
-
 
 % --- Executes on button press in SideButton.
 function SideButton_Callback(hObject, eventdata, handles)
@@ -451,14 +462,14 @@ function ShowExportedPartsButton_Callback(hObject, eventdata, handles)
 % hObject    handle to ShowExportedPartsButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-filename=regexprep(handles.FileName,'\.[Ss][Tt][Ll]','');
+filename=regexprep(['export/',handles.FileName],'\.[Ss][Tt][Ll]','');
 searchstr=[filename,'_*.stl'];
 files=dir(searchstr);
-
+[az,el]=view;
 cla;
 hold on
 for f=files'
-    [V,F]=stlread(f.name,true,true);
+    [V,F]=stlread(['export/',f.name],true,true);
     eztrisurf(handles.axes1,F,V);
     
 end
@@ -469,7 +480,18 @@ conv_files=dir(searchstr);
 
 hold on
 for f=conv_files'
-    [V,F]=stlread(f.name,true,true);
+    [V,F]=stlread(['export/',f.name],true,true);
     eztrisurf(handles.axes1,F,V,.5,[.6,.9,.6]);
 end
 hold off
+view(az,el)
+axis(handles.axis_range)
+
+
+% --- Executes on button press in AllDoneButton.
+function AllDoneButton_Callback(hObject, eventdata, handles)
+% hObject    handle to AllDoneButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+%movefile(handles.FileName,['completed/',handles.FileName])
+close
