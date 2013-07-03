@@ -22,7 +22,7 @@ function varargout = pickplanes(varargin)
 
 % Edit the above text to modify the response to help pickplanes
 
-% Last Modified by GUIDE v2.5 03-Jul-2013 13:27:55
+% Last Modified by GUIDE v2.5 03-Jul-2013 13:39:51
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -451,12 +451,25 @@ function ShowExportedPartsButton_Callback(hObject, eventdata, handles)
 % hObject    handle to ShowExportedPartsButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-files=dir([handles.FileName(1:8),'*']);
+filename=regexprep(handles.FileName,'\.[Ss][Tt][Ll]','');
+searchstr=[filename,'_*.stl'];
+files=dir(searchstr);
 
-for f=files
+cla;
+hold on
+for f=files'
+    [V,F]=stlread(f.name,true,true);
+    eztrisurf(handles.axes1,F,V);
     
-    [handles.V,handles.F]=stlread(f,true,true);
-    hold on
-    eztrisurf(handles.axes1,handles.F,handles.V);
-    hold off
 end
+hold off
+
+searchstr=regexprep(searchstr,'Body','convhull');
+conv_files=dir(searchstr);
+
+hold on
+for f=conv_files'
+    [V,F]=stlread(f.name,true,true);
+    eztrisurf(handles.axes1,F,V,.5,[.6,.9,.6]);
+end
+hold off
