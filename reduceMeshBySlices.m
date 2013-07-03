@@ -14,7 +14,7 @@ function [P_merged,K_merged] = reduceMeshBySlices(file,ax,slices,chooseslices,ch
 %       slices: number of slices to take
 %       iters: number of bisections to take (currently only works with 1)
 
-[K,P]=stlread(file);
+[P,K]=stlread(file);
 if check
     figure(3)
     eztrisurf(K,P)

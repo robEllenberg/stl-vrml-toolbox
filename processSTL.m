@@ -50,9 +50,9 @@ for k=1:length(listing)
     
     fname=listing(k).name;
     fname
-    [K,pointCloud]=stlread(fname);
+    [vertices,faces]=stlread(fname);
     if check>=1
-        eztrisurf(K,pointCloud);
+        eztrisurf(faces,vertices);
         drawnow; 
         if check>=2
             pause()
@@ -61,9 +61,9 @@ for k=1:length(listing)
         end
     end
     tic;
-    newCloud=pointCloud;
+    newCloud=vertices;
     newName=fname;
-    newMesh=K;
+    newMesh=faces;
     
     %Mirror VRML if specified
     rmatch=strfind(fname,'_R');
@@ -74,11 +74,11 @@ for k=1:length(listing)
         %newName=fname(1:end-4);
         newName(lmatch+1)=mir(2);
         newCloud(:,2)=-newCloud(:,2);
-        newMesh=K(:,[1,3,2]);
+        newMesh=faces(:,[1,3,2]);
     elseif ~isempty(rmatch) && strcmp(mir,'RL')
         newName(rmatch+1)=mir(2);
         newCloud(:,2)=-newCloud(:,2);
-        newMesh=K(:,[1,3,2]);
+        newMesh=faces(:,[1,3,2]);
     end
     
     if strcmp(geomtype,'hull')
