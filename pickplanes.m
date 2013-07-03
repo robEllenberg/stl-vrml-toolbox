@@ -22,7 +22,7 @@ function varargout = pickplanes(varargin)
 
 % Edit the above text to modify the response to help pickplanes
 
-% Last Modified by GUIDE v2.5 02-Jul-2013 20:01:43
+% Last Modified by GUIDE v2.5 02-Jul-2013 20:40:25
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -53,7 +53,12 @@ function pickplanes_OpeningFcn(hObject, eventdata, handles, varargin)
 
 % Choose default command line output for pickplanes
 handles.output = hObject;
-[handles.FileName,handles.PathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
+if length(varargin)>=1
+    handles.FileName=varargin{1};
+    handles.PathName='';
+else
+    [handles.FileName,handles.PathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
+end
 [handles.K,handles.P]=stlread([handles.PathName,handles.FileName]);
 handles.clicked=false;
 % Update handles structure
@@ -62,6 +67,8 @@ handles.clicked=false;
 if strcmp(get(hObject,'Visible'),'off')
     eztrisurf(handles.axes1,handles.K,handles.P);
 end
+
+
 guidata(hObject, handles);
 
 
@@ -117,18 +124,14 @@ end
 
 delete(handles.figure1)
 
-% --- Executes on button press in SideSelectButton.
-function SideSelectButton_Callback(hObject, eventdata, handles)
-% hObject    handle to SideSelectButton (see GCBO)
+% --- Executes on button press in ShowLeftButton.
+function ShowLeftButton_Callback(hObject, eventdata, handles)
+% hObject    handle to ShowLeftButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of SideSelectButton
-if get(hObject,'Value')
-    set(hObject,'String','Right Side');
-else
-    set(hObject,'String','Left Side');
-end
+% Hint: get(hObject,'Value') returns toggle state of ShowLeftButton
+update_plot(handles);
 
 % --- Executes on button press in updatemode.
 function updatemode_Callback(hObject, eventdata, handles)
@@ -195,41 +198,71 @@ function figure1_WindowButtonDownFcn(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 pt=select3d(handles.axes1);
-ax_range=axis();
+ax_range=axis();  
+    [az,el]=view;
 if ~isempty(pt) && ~handles.clicked  
     ind=4-get(handles.plane,'Value');
-    side=get(handles.SideSelectButton,'Value');
+    
     tol=str2num(get(handles.edit1,'String'));
     [Pl,Kl,Pr,Kr]=splitCloud(handles.P,handles.K,pt,ind,tol);
-    [az,el]=view;
-    eztrisurf(handles.axes1,Kl,handles.P,1,[.8,.2,.2]);
-    hold on
-    eztrisurf(handles.axes1,Kr,handles.P,1,[.2,.2,.8]);
     
-    Kconvl=convhull(Pl);
-    Kconvr=convhull(Pr);
-    eztrisurf(handles.axes1,Kconvl,Pl,.5,[.8,.2,.2]);
-    eztrisurf(handles.axes1,Kconvr,Pr,.5,[.2,.2,.8]);
-    hold off
-    handles.clicked=~handles.clicked;
-    view(az,el)
-    axis(ax_range)
-    xlabel('X')
-    ylabel('Y')
     handles.pt=pt;
     handles.Kl=Kl;
     handles.Kr=Kr;
     handles.Pl=Pl;
     handles.Pr=Pr;
+     
+    update_plot(handles)
+    
+    handles.clicked=~handles.clicked;
+
+    
 elseif handles.clicked && ~isempty(pt)
     handles.clicked=~handles.clicked;
     [az,el]=view;
     eztrisurf(handles.axes1,handles.K,handles.P);
     view(az,el)
     axis(ax_range)
+     xlabel('X')
+    ylabel('Y')
+    view(az,el)
+    axis(ax_range)
+     xlabel('X')
+    ylabel('Y')
+    zlabel('Z')
+    title(handles.FileName)
 end
 
 guidata(hObject,handles)
+
+function update_plot(handles)
+%Plotting
+    ax_range=axis();  
+    [az,el]=view;
+    cla;
+    hold on
+    showleft=get(handles.ShowLeftButton,'Value');
+    Kconvl=convhull(handles.Pl);
+    Kconvr=convhull(handles.Pr);
+    showright=get(handles.ShowRightButton,'Value');
+    if showleft
+        eztrisurf(handles.axes1,handles.Kl,handles.P,1,[.8,.2,.2]);
+        eztrisurf(handles.axes1,Kconvl,handles.Pl,.5,[.8,.2,.2]);
+    end
+    
+    if showright
+        eztrisurf(handles.axes1,handles.Kr,handles.P,1,[.2,.2,.8]);
+        eztrisurf(handles.axes1,Kconvr,handles.Pr,.5,[.2,.2,.8]);
+    end
+   
+    hold off
+    view(az,el)
+    axis(ax_range)
+    xlabel('X')
+    ylabel('Y')
+    zlabel('Z')
+    title(handles.FileName)
+
 
 function [Pleft,Kleft,Pright,Kright]=splitCloud(P,K,point,ind,tol)
 
@@ -268,9 +301,23 @@ function SaveButton_Callback(hObject, eventdata, handles)
 % hObject    handle to SaveButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+%Kludge: assume Body_XXX name
+files=dir([handles.FileName(1:8),'*']);
+suffixstart=strfind(handles.FileName,'_');
+newName=['convhull' handles.FileName(suffixstart:end)];
+Kconvl=convhull(handles.Pl);
+Kconvr=convhull(handles.Pr);
 
-cloud2stl(['l_',handles.FileName],handles.P,handles.Kl,'binary');
-cloud2stl(['r_',handles.FileName],handles.P,handles.Kr,'binary');
+if get(handles.ShowLeftButton,'Value')
+cloud2stl([handles.FileName(1:end-4),'_',num2str(length(files)),'.stl'],handles.P,handles.Kl,'binary');
+[Pc,Kc]=shrinkPointCloud(handles.Pl,Kconvl);
+cloud2stl([newName(1:end-4),'_',num2str(length(files)),'.stl'],Pc,Kc,'binary');
+end
+if get(handles.ShowLeftButton,'Value')
+cloud2stl([handles.FileName(1:end-4),'_',num2str(length(files)+1),'.stl'],handles.P,handles.Kr,'binary');
+[Pc,Kc]=shrinkPointCloud(handles.Pl,Kconvl);
+cloud2stl([newName(1:end-4),'_',num2str(length(files)),'.stl'],Pc,Kc,'binary');
+end
 
 
 % --- Executes on button press in LoadButton.
@@ -279,5 +326,41 @@ function LoadButton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 [handles.FileName,handles.PathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
-[handles.K,handles.P]=stlread([handles.PathName,handles.FileName]);
+if handles.FileName
+    [handles.K,handles.P]=stlread([handles.PathName,handles.FileName]);
+
+    eztrisurf(handles.axes1,handles.K,handles.P);
+end
+
 guidata(hObject,handles);
+
+
+% --- Executes on button press in AddModelButton.
+function AddModelButton_Callback(hObject, eventdata, handles)
+% hObject    handle to AddModelButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+[handles.FileName,handles.PathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
+[handles.K,handles.P]=stlread([handles.PathName,handles.FileName]);
+hold on
+eztrisurf(handles.axes1,handles.K,handles.P);
+hold off
+guidata(hObject,handles);
+
+
+% --- Executes on button press in ResetViewButton.
+function ResetViewButton_Callback(hObject, eventdata, handles)
+% hObject    handle to ResetViewButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+update_plot(handles);
+
+
+% --- Executes on button press in ShowRightButton.
+function ShowRightButton_Callback(hObject, eventdata, handles)
+% hObject    handle to ShowRightButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of ShowRightButton
+update_plot(handles);
