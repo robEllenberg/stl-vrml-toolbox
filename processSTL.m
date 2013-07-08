@@ -1,4 +1,4 @@
-function processSTL(filelist,mir,geomtype,check,stlout)
+function processSTL(filelist,mir,geomtype,rp,check,stlout)
 %% Process STL files exported from SolidWorks URDF Exporter
 % Read in a listing of files and process them for OpenRAVE by adding color
 % data, and optionally mirroring and finding the convex hulls of each.
@@ -45,11 +45,11 @@ for k=1:length(listing)
     end
     
     fname=listing(k).name;
-    processFile(fname,mir,geomtype,check,stlout)
+    processFile(fname,mir,geomtype,rp, check,stlout)
 end
 end
 
-function processFile(fname,mir,geomtype,check,stlout)
+function processFile(fname,mir,geomtype,rp,check,stlout)
 fprintf('Processing file %s\n',fname);
 [vertices,faces]=stlread(fname);
 
@@ -91,6 +91,7 @@ if strcmp(geomtype,'hull')
 elseif strcmp(geomtype,'shrink')
     newName=['shrink_' newName];
     [V,F]=removeCoplanarHullFaces(V,F);
+    [V,F]=trimeshReduce(V,F,rp);
 end
 
 if ~isempty(stlout) && stlout

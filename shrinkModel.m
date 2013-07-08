@@ -4,10 +4,10 @@ function [Vout,Fout]=shrinkModel(V,F)
 %rest.  It's probably balls slow, but it's not worth tweaking at this point
 %
 %Usage:
-%   [newCloud,newFaces] = shrinkPointCloud(V,F)
+%   [Vout,Fout] = shrinkModel(V,F)
 %
-%       newCloud is the new point cloud, reduced in size
-%       newFaces is the new set of indices referring to these new pruned
+%       Vout is the new point cloud, reduced in size
+%       Fout is the new set of indices referring to these new pruned
 %       points
 %       V is the original set of vertices in the model
 %       F is the original set of faces in the model
@@ -19,6 +19,6 @@ function [Vout,Fout]=shrinkModel(V,F)
     newind=zeros(size(V2,1),1);
     newind(pointsUsed)=1:length(pointsUsed);
     
-    Fout=newind(F);
+    Fout=newind(F2);
     Vout=V2(pointsUsed,:);
 end
