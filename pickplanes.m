@@ -60,24 +60,20 @@ else
     [handles.FileName,handles.PathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
 end
 [handles.V,handles.F]=stlread([handles.PathName,handles.FileName],true,true);
-handles.V1=[];
+handles.V1=handles.V;
 handles.V2=[];
-handles.F1=[];
+handles.F1=handles.F;
 handles.F2=[];
 mkdir export
 % Update handles structure
 % This sets up the initial plot - only do when we are invisible
 % so window can get raised using pickplanes.
-if strcmp(get(hObject,'Visible'),'off')
-    eztrisurf(handles.axes1,handles.F,handles.V);
-end
+
+eztrisurf(handles.axes1,handles.F,handles.V);
+
 handles.axis_range=axis();
-
+update_plot(handles);
 guidata(hObject, handles);
-
-
-% UIWAIT makes pickplanes wait for user respendonse (see UIRESUME)
-% uiwait(handles.figure1);
 
 
 % --- Outputs from this function are returned to the command line.
@@ -221,12 +217,12 @@ function newSplitPoint(hObject,handles)
 ind=4-get(handles.plane,'Value');
 side=get(handles.SideButton,'Value');
 tol=str2double(get(handles.edit1,'String'));
-[V1,F1,V2,F2]=splitModel(handles.V,handles.F,handles.pt,ind,tol,side);
+[handles.V1,handles.F1,handles.V2,handles.F2]=splitModel(handles.V,handles.F,handles.pt,ind,tol,side);
 
-handles.F1=F1;
-handles.F2=F2;
-handles.V1=V1;
-handles.V2=V2;
+% handles.F1=F1;
+% handles.F2=F2;
+% handles.V1=V1;
+% handles.V2=V2;
 
 update_plot(handles)
 guidata(hObject,handles)
@@ -235,32 +231,32 @@ function update_plot(handles)
 
 [az,el]=view;
 cla;
-hold on
+%eztrisurf(handles.axes1,handles.F,handles.V,1,[.5,.5,.5]);
+
 showleft=get(handles.ShowLeftButton,'Value');
-if handles.V1
-F_conv1=convhull(handles.V1);
-F_conv2=convhull(handles.V2);
 showright=get(handles.ShowRightButton,'Value');
-if showleft
+
+hold on
+if showleft && ~isempty(handles.F1)
+    F_conv1=convhull(handles.V1);
     eztrisurf(handles.axes1,handles.F1,handles.V1,1,[.7,.2,.2]);
     eztrisurf(handles.axes1,F_conv1,handles.V1,.5,[.9,.2,.2]);
 end
 
-if showright
+if showright && ~isempty(handles.F2)
+    F_conv2=convhull(handles.V2);
     eztrisurf(handles.axes1,handles.F2,handles.V2,1,[.2,.2,.7]);
     eztrisurf(handles.axes1,F_conv2,handles.V2,.5,[.2,.2,.9]);
 end
 
 hold off
-else
-   eztrisurf(handles.axes1,handles.F,handles.V,1,[.5,.5,.5]); 
-end
+
 view(az,el)
 axis(handles.axis_range)
 xlabel('X')
 ylabel('Y')
 zlabel('Z')
-title(handles.FileName)
+title(handles.FileName,'Interpreter', 'none')
 
 function [V1,F1,V2,F2]=splitModel(V,F,point,ind,tol,side)
 %Split vertices and faces at the cut plane, fuzzifying by a tolerance
@@ -291,21 +287,13 @@ function SaveButton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-%KLUDGE: assume Body_XXX name
-files=dir(['export/',handles.FileName(1:8),'*']);
-ind=length(files)+1;
-
-
-if get(handles.ShowLeftButton,'Value')
-    newName=regexprep(['export/',handles.FileName,],'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
-    writeModel(handles.V1,handles.F1,newName);
-    writeConvexHull(handles.V1,newName)
-    ind=ind+1;
+if get(handles.ShowLeftButton,'Value') && ~isempty(handles.V1)
+    writeModel(handles.V1,handles.F1,handles.FileName,get(handles.ReduceHullsCheck,'Value'));
+    %writeConvexHull(handles.V1,handles.FileName,get(handles.ReduceHullsCheck,'Value'))
 end
-if get(handles.ShowRightButton,'Value')
-    newName=regexprep(['export/',handles.FileName],'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
-    writeModel(handles.V2,handles.F2,newName);
-    writeConvexHull(handles.V2,newName)
+if get(handles.ShowRightButton,'Value') && ~isempty(handles.V2)
+    writeModel(handles.V2,handles.F2,handles.FileName,get(handles.ReduceHullsCheck,'Value'));
+    %writeConvexHull(handles.V2,handles.FileName,get(handles.ReduceHullsCheck,'Value'))
 end
 
 
@@ -321,6 +309,7 @@ if handles.FileName
     eztrisurf(handles.axes1,handles.F,handles.V);
 end
 handles.axis_range=axis();
+update_plot(handles);
 guidata(hObject,handles);
 
 
@@ -343,9 +332,9 @@ function ResetViewButton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 cla
-handles.V1=[];
+handles.V1=handles.V;
 handles.V2=[];
-handles.F1=[];
+handles.F1=handles.F;
 handles.F2=[];
 update_plot(handles);
 guidata(hObject,handles);
@@ -359,20 +348,24 @@ function ShowRightButton_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of ShowRightButton
 update_plot(handles);
 
-function writeConvexHull(V,modelname)
+function writeConvexHull(V,modelname,reduce)
 F_conv=convhull(V);
-if get(handles.ReduceHullsCheck,'Value')
-   [Vc,Fc]=trimeshReduce(V,F_conv, get(handles.ReductionValue,'Value'));
+if reduce
+    [Vc,Fc]=trimeshReduce(V,F_conv,reduce);
 else
     [Vc,Fc]=shrinkModel(V,F_conv);
 end
-outname=regexprep(modelname,'Body','convhull');
 
+outname=regexprep(modelname,'Body','convhull');
 cloud2stl(outname,Vc,Fc,'binary');
 
-function writeModel(V,F,modelname)
-[Vc,Fc]=shrinkModel(V,F);
-cloud2stl(modelname,Vc,Fc,'binary');
+function writeModel(V,F,modelname,reduce)
+ind=getFileIndex(modelname);
+%outname=regexprep(modelname,'Body','raw');
+outname=regexprep(modelname,'\.stl',sprintf('_%d.stl',ind));
+%[Vc,Fc]=shrinkModel(V,F);
+cloud2stl(['export/',outname],V,F,'binary');
+writeConvexHull(V,['export/',outname],reduce)
 
 
 % --- Executes on button press in SliceXYCheck.
@@ -407,12 +400,13 @@ function RefineRedButton_Callback(hObject, eventdata, handles)
 % hObject    handle to RefineRedButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-handles.V=handles.V1;
-handles.F=handles.F1;  
-eztrisurf(handles.axes1,handles.F,handles.V);
-axis(handles.axis_range);
-guidata(hObject,handles);
+if ~isempty(handles.V1)
+    handles.V=handles.V1;
+    handles.F=handles.F1;
+    eztrisurf(handles.axes1,handles.F,handles.V);
+    axis(handles.axis_range);
+    guidata(hObject,handles);
+end
 
 
 % --- Executes on button press in RefineBlueButton.
@@ -421,12 +415,19 @@ function RefineBlueButton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-handles.V=handles.V2;
-handles.F=handles.F2;
-    
-eztrisurf(handles.axes1,handles.F,handles.V);
-axis(handles.axis_range);
-guidata(hObject,handles);
+if ~isempty(handles.V2)
+    handles.V=handles.V2;
+    handles.F=handles.F2;
+    eztrisurf(handles.axes1,handles.F,handles.V);
+    axis(handles.axis_range);
+    guidata(hObject,handles);
+end
+
+function ind=getFileIndex(filename)
+filemask=['export/',filename(1:8),'*'];
+%rawmask=regexprep(filemask,'Body','raw');
+files=dir(filemask);
+ind=length(files)+1;
 
 
 % --- Executes on button press in ExportRedButton.
@@ -435,24 +436,17 @@ function ExportRedButton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 %KLUDGE: assume Body_XXX name
-files=dir(['export/',handles.FileName(1:8),'*']);
-ind=length(files)+1;
 
-newName=regexprep(['export/',handles.FileName],'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
-writeModel(handles.V1,handles.F1,newName);
-writeConvexHull(handles.V1,newName)
+writeModel(handles.V1,handles.F1,handles.FileName,get(handles.ReduceHullsCheck,'Value'));
+%writeConvexHull(handles.V1,handles.FileName,get(handles.ReduceHullsCheck,'Value'))
 
 % --- Executes on button press in ExportBlueButton.
 function ExportBlueButton_Callback(hObject, eventdata, handles)
 % hObject    handle to ExportBlueButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-files=dir(['export/',handles.FileName(1:8),'*']);
-ind=length(files)+1;
 
-newName=regexprep(['export/',handles.FileName],'\.[sS][Tt][Ll]',sprintf('_%d.stl',ind));
-writeModel(handles.V2,handles.F2,newName);
-writeConvexHull(handles.V2,newName)
+writeModel(handles.V2,handles.F2,handles.FileName,get(handles.ReduceHullsCheck,'Value'));
 
 % --- Executes on button press in SideButton.
 function SideButton_Callback(hObject, eventdata, handles)
@@ -511,7 +505,6 @@ function ReduceHullsCheck_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of ReduceHullsCheck
-
 
 
 function ReductionValue_Callback(hObject, eventdata, handles)

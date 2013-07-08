@@ -51,7 +51,7 @@ end
 
 function processFile(fname,mir,geomtype,rp,check,stlout)
 fprintf('Processing file %s\n',fname);
-[vertices,faces]=stlread(fname);
+[vertices,faces]=stlread(fname,true,true);
 
 % if check>=1
 %     eztrisurf(faces,vertices);
