@@ -22,7 +22,7 @@ function varargout = pickplanes(varargin)
 
 % Edit the above text to modify the response to help pickplanes
 
-% Last Modified by GUIDE v2.5 08-Jul-2013 02:43:20
+% Last Modified by GUIDE v2.5 08-Jul-2013 18:34:49
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -287,12 +287,13 @@ function SaveButton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+reduce=get(handles.ReduceHullsCheck,'Value')*2+get(handles.RemoveCoplanar,'Value');
 if get(handles.ShowLeftButton,'Value') && ~isempty(handles.V1)
-    writeModel(handles.V1,handles.F1,handles.FileName,get(handles.ReduceHullsCheck,'Value'));
+    writeModel(handles.V1,handles.F1,handles.FileName,reduce);
     %writeConvexHull(handles.V1,handles.FileName,get(handles.ReduceHullsCheck,'Value'))
 end
 if get(handles.ShowRightButton,'Value') && ~isempty(handles.V2)
-    writeModel(handles.V2,handles.F2,handles.FileName,get(handles.ReduceHullsCheck,'Value'));
+    writeModel(handles.V2,handles.F2,handles.FileName,reduce);
     %writeConvexHull(handles.V2,handles.FileName,get(handles.ReduceHullsCheck,'Value'))
 end
 
@@ -350,10 +351,13 @@ update_plot(handles);
 
 function writeConvexHull(V,modelname,reduce)
 F_conv=convhull(V);
-if reduce
-    [Vc,Fc]=trimeshReduce(V,F_conv,reduce);
-else
-    [Vc,Fc]=shrinkModel(V,F_conv);
+switch reduce
+    case 1
+        [Vc,Fc]=removeCoplanarHullFaces(V,F_conv);
+    case 3
+        [Vc,Fc]=trimeshReduce(V,F_conv,reduce);
+    otherwise
+        [Vc,Fc]=shrinkModel(V,F_conv);
 end
 
 outname=regexprep(modelname,'Body','convhull');
@@ -436,8 +440,8 @@ function ExportRedButton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 %KLUDGE: assume Body_XXX name
-
-writeModel(handles.V1,handles.F1,handles.FileName,get(handles.ReduceHullsCheck,'Value'));
+reduce=get(handles.ReduceHullsCheck,'Value')*2+get(handles.RemoveCoplanar,'Value')
+writeModel(handles.V1,handles.F1,handles.FileName,reduce);
 %writeConvexHull(handles.V1,handles.FileName,get(handles.ReduceHullsCheck,'Value'))
 
 % --- Executes on button press in ExportBlueButton.
@@ -445,8 +449,8 @@ function ExportBlueButton_Callback(hObject, eventdata, handles)
 % hObject    handle to ExportBlueButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-writeModel(handles.V2,handles.F2,handles.FileName,get(handles.ReduceHullsCheck,'Value'));
+reduce=get(handles.ReduceHullsCheck,'Value')*2+get(handles.RemoveCoplanar,'Value');
+writeModel(handles.V2,handles.F2,handles.FileName,reduce);
 
 % --- Executes on button press in SideButton.
 function SideButton_Callback(hObject, eventdata, handles)
@@ -527,3 +531,12 @@ function ReductionValue_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in RemoveCoplanar.
+function RemoveCoplanar_Callback(hObject, eventdata, handles)
+% hObject    handle to RemoveCoplanar (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of RemoveCoplanar

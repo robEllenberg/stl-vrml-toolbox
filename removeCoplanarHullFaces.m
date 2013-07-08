@@ -1,11 +1,10 @@
 function [Pout,Kout]=removeCoplanarHullFaces(P,K)
-close all
 facenormals=faceNormal(P,K);
 normals=facenormals./repmat(sqrt(sum(facenormals.^2,2)),1,3);
 
-tol=1e-10;
+
 %Crude unique normal finder
-[~,~,N]=unique(round(normals/tol)*tol,'rows');
+[~,~,N]=unique(normals,'rows');
 
 ind=hist(N,unique(N));
 % figure(1)
@@ -23,7 +22,6 @@ for k=dupes
     % project points onto the plane
     pt_inds=K(faces,:);
     
-    
     pts = planePosition(P(pt_inds,:), plane);
     
     K2d=unique(convhull(pts));
@@ -38,7 +36,7 @@ keep_inds(remove_inds)=false;
 
 Pout=P(keep_inds,:);
 Kout=convhull(Pout);
-
+% 
 % figure(2)
 % drawMesh(Pout,Kout)
 

@@ -1,4 +1,4 @@
-function cloud2stl(filename,cloud,mesh,mode)
+function cloud2stl(filename,V,F,mode)
 %   Author: Robert Ellenberg
 %       based on surf2stl by Bill McDonald, 02-20-04
 
@@ -34,7 +34,7 @@ else
     fwrite(fid,0,'int32');           % Number of facets, zero for now
 end
 
-N=find_normals(cloud,mesh);
+N=find_normals(V,F);
 
 if strcmp(mode,'ascii')
     write_facet=@local_write_facet;
@@ -42,22 +42,34 @@ else
     write_facet=@local_write_binary_facet;
 end
 
-if any(isnan(cloud))
+if any(isnan(V))
     disp('Found NaN in Points, aborting!')
     return
 end
-for i=1:(size(mesh,1))
-    
-    p1 = cloud(mesh(i,1),:);
-    p2 = cloud(mesh(i,2),:);
-    p3 = cloud(mesh(i,3),:);
-    write_facet(fid,p1,p2,p3,N(i));
-end
-nfacets=size(N,1);
+
+V1 = V(F(:,2),:)-V(F(:,1),:);
+V2 = V(F(:,3),:)-V(F(:,1),:);
+V3 = cross(V1,V2);
+N = V3 ./ repmat(sqrt(sum(V3.^2,2)),1,3);
+
 
 if strcmp(mode,'ascii')
+    for i=1:(size(F,1))
+    
+        p1 = V(F(i,1),:);
+        p2 = V(F(i,2),:);
+        p3 = V(F(i,3),:);
+        write_facet(fid,p1,p2,p3,N(i));
+    end
     fprintf(fid,'endsolid %s\r\n',title_str);
 else
+    data_raw=single([N,V(F(:,1),:),V(F(:,2),:),V(F(:,3),:)])';
+    data=zeros(size(data_raw,2),25,'uint16');
+    data(:,1:24)=reshape(typecast(data_raw(:),'uint16')',12*2,[])';
+    data_long=data';
+    
+    nfacets=size(F,1);
+    fwrite(fid,data_long(:),'uint16');
     fseek(fid,0,'bof');
     fseek(fid,80,'bof');
     fwrite(fid,nfacets,'int32');
@@ -89,11 +101,7 @@ else
 end
 
 function local_write_binary_facet(fid,p1,p2,p3,n)
-data=[n,p1,p2,p3];
-fwrite(fid,n,'float32');
-fwrite(fid,p1,'float32');
-fwrite(fid,p2,'float32');
-fwrite(fid,p3,'float32');
+fwrite(fid,[n,p1,p2,p3],'float32');
 fwrite(fid,0,'int16');  % unused
 
 

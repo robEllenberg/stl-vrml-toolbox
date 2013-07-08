@@ -51,7 +51,7 @@ end
 
 function processFile(fname,mir,geomtype,rp,check,stlout)
 fprintf('Processing file %s\n',fname);
-[vertices,faces]=stlread(fname,true,true);
+[V,F]=stlread(fname,true,true);
 
 % if check>=1
 %     eztrisurf(faces,vertices);
@@ -63,10 +63,7 @@ fprintf('Processing file %s\n',fname);
 %     end
 % end
 tic;
-V=vertices;
 newName=fname;
-F=faces;
-
 %Mirror VRML if specified
 rmatch=strfind(fname,'_R');
 lmatch=strfind(fname,'_L');
@@ -91,7 +88,9 @@ if strcmp(geomtype,'hull')
 elseif strcmp(geomtype,'shrink')
     newName=['shrink_' newName];
     [V,F]=removeCoplanarHullFaces(V,F);
+    if rp
     [V,F]=trimeshReduce(V,F,rp);
+    end
 end
 
 if ~isempty(stlout) && stlout
