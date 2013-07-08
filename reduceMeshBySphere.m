@@ -16,9 +16,9 @@ cent=polyhedronCentroid(P,K_conv);
 bb=boundingBox3d(P);
 bmin=bb([1:2:5])-cent;
 bmax=bb([2:2:6])-cent;
-radius=1.2*max(abs([bmin,bmax]));
-
-[Ps,Ks]=makeSphereWrapper(cent,radius,20,ax);
+radius=1.1*max(abs([bmin,bmax]));
+min_radius=min(abs([bmin,bmax]))/5;
+[Ps,Ks]=makeSphereWrapper(cent,radius,40,ax);
 % 
 % if check
 %     hold on
@@ -41,24 +41,17 @@ offsets=[0,0;
 d=zeros(5,1);
 ind=zeros(5,1);
 for j=1:size(Ps,1)
-    for k=1:5
-        pj=Ps(j,:);
-        h = pj-cent;
-        direc = h / norm(h);
-        A=null(direc);
-        int_line=[cent+(offsets(k,1)*A(:,1)+offsets(k,2)*A(:,2))',direc];
-        %Find intersections along line to conv-hull point from center
-        [inters,~,face_inters{k}]=intersectLineMesh3d(int_line,P,K);
-        %knowing that distance >= 0, find min distance and scale
-        [d(k),ind(k)]=minDistanceToBody(pj,inters);
-        
-    end
-    [dmin,kmin]=min(d);
-    if dmin<radius
-%         ind
-%         d
-%         face_inters
-        intersected(face_inters{kmin}(ind(kmin)))=true;
+    
+    pj=Ps(j,:);
+    h = pj-cent;
+    direc = h / norm(h);
+    int_line=[cent,direc];
+    %Find intersections along line to conv-hull point from center
+    [inters,~,face_inters]=intersectLineMesh3d(int_line,P,K);
+    %knowing that distance >= 0, find min distance and scale
+    [d,ind]=minDistanceToBody(pj,inters);
+    if d<(radius-min_radius)
+        intersected(face_inters(ind))=true;
     end
     %     ind
     %     face_inters(ind)
@@ -86,7 +79,7 @@ if check
     %eztrisurf(Ks,Ps,.8);
     ezscatter(Ps2)
     %eztrisurf(Ks2,projections,.5);
-    eztrisurf(Ks2,Ps2,1,[.8,.5,.5]);
+    eztrisurf(Ks2,Ps2,.7,[.8,.5,.5]);
     hold off
     title('Shrunk convex hull towards body');
     xlabel('X')
