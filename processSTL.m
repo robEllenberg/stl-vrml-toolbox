@@ -73,11 +73,11 @@ if ~isempty(lmatch) && strcmp(mir,'LR')
     %newName=fname(1:end-4);
     newName(lmatch+1)=mir(2);
     V(:,2)=-V(:,2);
-    F=faces(:,[1,3,2]);
+    F=F(:,[1,3,2]);
 elseif ~isempty(rmatch) && strcmp(mir,'RL')
     newName(rmatch+1)=mir(2);
     V(:,2)=-V(:,2);
-    F=faces(:,[1,3,2]);
+    F=F(:,[1,3,2]);
 end
 
 if strcmp(geomtype,'hull')

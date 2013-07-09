@@ -57,23 +57,28 @@ if length(varargin)>=1
     handles.FileName=varargin{1};
     handles.PathName='';
 else
-    [handles.FileName,handles.PathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
+    filterspec={'*.stl';'*.STL'};
+    [handles.FileName,handles.PathName,handles.FilterIndex] = uigetfile(filterspec,'Select an STL mesh to split');
 end
-[handles.V,handles.F]=stlread([handles.PathName,handles.FileName],true,true);
-handles.V1=handles.V;
-handles.V2=[];
-handles.F1=handles.F;
-handles.F2=[];
+
 mkdir export
-% Update handles structure
-% This sets up the initial plot - only do when we are invisible
-% so window can get raised using pickplanes.
+load_model(handles);
 
-eztrisurf(handles.axes1,handles.F,handles.V);
 
-handles.axis_range=axis();
-update_plot(handles);
-guidata(hObject, handles);
+function load_model(handles)
+%% Load in a new model and update handles
+if  isstr(handles.FileName) && ~isempty(dir([handles.PathName,handles.FileName]))
+    [handles.V,handles.F]=stlread([handles.PathName,handles.FileName],true,true);
+    
+    handles.V1=handles.V;
+    handles.V2=[];
+    handles.F1=handles.F;
+    handles.F2=[];
+    
+    reset_plot(handles);
+    update_plot(handles);
+end
+guidata(handles.figure1,handles);
 
 
 % --- Outputs from this function are returned to the command line.
@@ -197,8 +202,6 @@ trisurf(faces,vertices(:,1),vertices(:,2),vertices(:,3),...
 axis equal
 
 
-
-
 % --- Executes on mouse press over figure background, over a disabled or
 % --- inactive control, or over an axes background.
 function figure1_WindowButtonDownFcn(hObject, eventdata, handles)
@@ -217,46 +220,56 @@ function newSplitPoint(hObject,handles)
 ind=4-get(handles.plane,'Value');
 side=get(handles.SideButton,'Value');
 tol=str2double(get(handles.edit1,'String'));
-[handles.V1,handles.F1,handles.V2,handles.F2]=splitModel(handles.V,handles.F,handles.pt,ind,tol,side);
-
-% handles.F1=F1;
-% handles.F2=F2;
-% handles.V1=V1;
-% handles.V2=V2;
-
-update_plot(handles)
+[handles.V1,handles.F1,handles.V2,handles.F2]=...
+    splitModel(handles.V,handles.F,handles.pt,ind,tol,side);
 guidata(hObject,handles)
+update_plot(handles)
     
 function update_plot(handles)
+%%Update the plot based on the latest selection point from handles.
+% Does not alter or update handles structure.
 
+%Save view parameters
 [az,el]=view;
+axis_range=axis();
 cla;
-%eztrisurf(handles.axes1,handles.F,handles.V,1,[.5,.5,.5]);
 
 showleft=get(handles.ShowLeftButton,'Value');
 showright=get(handles.ShowRightButton,'Value');
 
+dark_red=[.5,.3,.3];
+light_red=[.9,.3,.2];
+
+dark_blue=[.3,.3,.5];
+light_blue=[.2,.3,.9];
+
 hold on
 if showleft && ~isempty(handles.F1)
     F_conv1=convhull(handles.V1);
-    eztrisurf(handles.axes1,handles.F1,handles.V1,1,[.7,.2,.2]);
-    eztrisurf(handles.axes1,F_conv1,handles.V1,.5,[.9,.2,.2]);
+    eztrisurf(handles.axes1,handles.F1,handles.V1,1,dark_red);
+    eztrisurf(handles.axes1,F_conv1,handles.V1,.5,light_red);
 end
 
 if showright && ~isempty(handles.F2)
     F_conv2=convhull(handles.V2);
-    eztrisurf(handles.axes1,handles.F2,handles.V2,1,[.2,.2,.7]);
-    eztrisurf(handles.axes1,F_conv2,handles.V2,.5,[.2,.2,.9]);
+    eztrisurf(handles.axes1,handles.F2,handles.V2,1,dark_blue);
+    eztrisurf(handles.axes1,F_conv2,handles.V2,.5,light_blue);
 end
 
 hold off
 
+%Restore view parameters
 view(az,el)
-axis(handles.axis_range)
+axis(axis_range)
+
+%Plot formatting
 xlabel('X')
 ylabel('Y')
 zlabel('Z')
-title(handles.FileName,'Interpreter', 'none')
+title(['Model: ',handles.FileName],'Interpreter', 'none')
+
+function reset_plot(handles)
+eztrisurf(handles.axes1,handles.F,handles.V,1,[.5,.5,.5]);
 
 function [V1,F1,V2,F2]=splitModel(V,F,point,ind,tol,side)
 %Split vertices and faces at the cut plane, fuzzifying by a tolerance
@@ -303,15 +316,12 @@ function LoadButton_Callback(hObject, eventdata, handles)
 % hObject    handle to LoadButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-[handles.FileName,handles.PathName,handles.FilterIndex] = uigetfile('*.stl','Select an STL mesh to split');
-if handles.FileName
-    [handles.V,handles.F]=stlread([handles.PathName,handles.FileName],true,true);
-    
-    eztrisurf(handles.axes1,handles.F,handles.V);
-end
-handles.axis_range=axis();
+filterspec={'*.stl';'*.STL'};
+[handles.FileName,handles.PathName,handles.FilterIndex] = uigetfile(filterspec,'Select an STL mesh to split');
+load_model(handles);
+handles=guidata(handles.figure1);
+reset_plot(handles);
 update_plot(handles);
-guidata(hObject,handles);
 
 
 % --- Executes on button press in AddModelButton.
@@ -332,11 +342,12 @@ function ResetViewButton_Callback(hObject, eventdata, handles)
 % hObject    handle to ResetViewButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-cla
+cla;
 handles.V1=handles.V;
 handles.V2=[];
 handles.F1=handles.F;
 handles.F2=[];
+reset_plot(handles);
 update_plot(handles);
 guidata(hObject,handles);
 
@@ -348,25 +359,33 @@ function ShowRightButton_Callback(hObject, eventdata, handles)
 
 % Hint: get(hObject,'Value') returns toggle state of ShowRightButton
 update_plot(handles);
+outname=regexprep(modelname,'Body','convhull');
+cloud2stl(outname,Vc,Fc,'binary');
+
 
 function writeConvexHull(V,modelname,reduce)
 F_conv=convhull(V);
 switch reduce
     case 1
+        disp('Removing coplanar faces...')
         [Vc,Fc]=removeCoplanarHullFaces(V,F_conv);
+    case 2
+        disp('Reducing geometry complexity...')
+        [Vc,Fc]=trimeshReduce(V,F_conv,reduce);
     case 3
+        disp('Reducing geometry complexity...')
         [Vc,Fc]=trimeshReduce(V,F_conv,reduce);
     otherwise
         [Vc,Fc]=shrinkModel(V,F_conv);
 end
-
 outname=regexprep(modelname,'Body','convhull');
 cloud2stl(outname,Vc,Fc,'binary');
 
 function writeModel(V,F,modelname,reduce)
+disp(modelname)
 ind=getFileIndex(modelname);
 %outname=regexprep(modelname,'Body','raw');
-outname=regexprep(modelname,'\.stl',sprintf('_%d.stl',ind));
+outname=regexprep(modelname,'\.[Ss][Tt][Ll]',sprintf('_%d.stl',ind));
 %[Vc,Fc]=shrinkModel(V,F);
 cloud2stl(['export/',outname],V,F,'binary');
 writeConvexHull(V,['export/',outname],reduce)
@@ -407,10 +426,12 @@ function RefineRedButton_Callback(hObject, eventdata, handles)
 if ~isempty(handles.V1)
     handles.V=handles.V1;
     handles.F=handles.F1;
-    eztrisurf(handles.axes1,handles.F,handles.V);
-    axis(handles.axis_range);
+    handles.V2=[];
+    handles.F2=[];
     guidata(hObject,handles);
 end
+reset_plot(handles);
+update_plot(handles);
 
 
 % --- Executes on button press in RefineBlueButton.
@@ -422,16 +443,16 @@ function RefineBlueButton_Callback(hObject, eventdata, handles)
 if ~isempty(handles.V2)
     handles.V=handles.V2;
     handles.F=handles.F2;
-    eztrisurf(handles.axes1,handles.F,handles.V);
-    axis(handles.axis_range);
     guidata(hObject,handles);
 end
+reset_plot(handles);
+update_plot(handles);
 
 function ind=getFileIndex(filename)
 filemask=['export/',filename(1:8),'*'];
 %rawmask=regexprep(filemask,'Body','raw');
 files=dir(filemask);
-ind=length(files)+1;
+ind=length(files)+1
 
 
 % --- Executes on button press in ExportRedButton.
@@ -440,7 +461,7 @@ function ExportRedButton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 %KLUDGE: assume Body_XXX name
-reduce=get(handles.ReduceHullsCheck,'Value')*2+get(handles.RemoveCoplanar,'Value')
+reduce=get(handles.ReduceHullsCheck,'Value')*2+get(handles.RemoveCoplanar,'Value');
 writeModel(handles.V1,handles.F1,handles.FileName,reduce);
 %writeConvexHull(handles.V1,handles.FileName,get(handles.ReduceHullsCheck,'Value'))
 
@@ -467,30 +488,50 @@ function ShowExportedPartsButton_Callback(hObject, eventdata, handles)
 % hObject    handle to ShowExportedPartsButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+%Look for files matching the base name
 filename=regexprep(['export/',handles.FileName],'\.[Ss][Tt][Ll]','');
 searchstr=[filename,'_*.stl'];
 files=dir(searchstr);
-[az,el]=view;
-cla;
-hold on
-for f=files'
-    [V,F]=stlread(['export/',f.name],true,true);
-    eztrisurf(handles.axes1,F,V);
-    
-end
-hold off
-
 searchstr=regexprep(searchstr,'Body','convhull');
 conv_files=dir(searchstr);
 
+%Store view information
+[az,el]=view;
+axis_range=axis();
+cla;
+
+%Increment data counter to change modes
+set(hObject,'UserData',get(hObject,'UserData')+1);
+if get(hObject,'UserData')>1
+    set(hObject,'UserData',0);
+end
+
+if get(hObject,'UserData')==1
+    
+    hold on
+    for f=files'
+        f.name
+        [V,F]=stlread(['export/',f.name],true,true);
+        eztrisurf(handles.axes1,F,V);     
+    end
+    hold off
+end
+
+
 hold on
 for f=conv_files'
+    f.name
     [V,F]=stlread(['export/',f.name],true,true);
     eztrisurf(handles.axes1,F,V,.5,[.6,.9,.6]);
 end
 hold off
-view(az,el)
-axis(handles.axis_range)
+
+
+%Restore view and axis
+axis(axis_range);
+view(az,el);
+
 
 
 % --- Executes on button press in AllDoneButton.
