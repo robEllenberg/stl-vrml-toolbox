@@ -1,5 +1,5 @@
 clear all
-[K,P]=stlread('Body_LWP.stl');
+[P,K]=stlread('Body_LWP.stl');
 close all
 
 bounds=[min(P)';max(P)'];
